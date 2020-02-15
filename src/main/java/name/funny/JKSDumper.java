@@ -6,6 +6,7 @@ import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
@@ -91,7 +92,9 @@ class JKSDumper implements AutoCloseable {
     }
 
     @SuppressWarnings("PointlessArithmeticExpression")
-    private static final byte[] keyProtectorOid = {1 * 40 + 3, 6, 1, 4, 1, 42, 2, 17, 1, 1};
+    private static final ByteBuffer keyProtectorOid = ByteBuffer.wrap(
+            new byte[]{1 * 40 + 3, 6, 1, 4, 1, 42, 2, 17, 1, 1}
+    );
 
     private static byte[] extractKeyProtectorData(BerValue pkcs8) {
         if (!pkcs8.matchConstructed(BerValue.TagClass.Universal, 16)) {
@@ -111,13 +114,8 @@ class JKSDumper implements AutoCloseable {
         if (!algOid.matchPrimitive(BerValue.TagClass.Universal, 6)) {
             return null;
         }
-        if (algOid.primitiveValue.limit() != keyProtectorOid.length) {
+        if (!algOid.primitiveValue.equals(keyProtectorOid)) {
             return null;
-        }
-        for (int i = 0; i < algOid.primitiveValue.limit(); i++) {
-            if (algOid.primitiveValue.get(i) != keyProtectorOid[i]) {
-                return null;
-            }
         }
         if (algId.children.size() == 2) {
             BerValue algParams = algId.children.get(1);
