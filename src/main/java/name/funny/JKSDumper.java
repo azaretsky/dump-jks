@@ -111,15 +111,20 @@ class JKSDumper implements AutoCloseable {
         if (!algOid.matchPrimitive(BerValue.TagClass.Universal, 6)) {
             return null;
         }
-        if (!Arrays.equals(algOid.primitiveValue, keyProtectorOid)) {
+        if (algOid.primitiveValue.limit() != keyProtectorOid.length) {
             return null;
+        }
+        for (int i = 0; i < algOid.primitiveValue.limit(); i++) {
+            if (algOid.primitiveValue.get(i) != keyProtectorOid[i]) {
+                return null;
+            }
         }
         if (algId.children.size() == 2) {
             BerValue algParams = algId.children.get(1);
             if (!algParams.matchPrimitive(BerValue.TagClass.Universal, 5)) {
                 return null;
             }
-            if (algParams.primitiveValue.length > 0) {
+            if (algParams.primitiveValue.limit() > 0) {
                 return null;
             }
         }
@@ -127,7 +132,10 @@ class JKSDumper implements AutoCloseable {
         if (!encryptedKey.matchPrimitive(BerValue.TagClass.Universal, 4)) {
             return null;
         }
-        return encryptedKey.primitiveValue;
+        byte[] keyBytes = new byte[encryptedKey.primitiveValue.limit()];
+        encryptedKey.primitiveValue.rewind();
+        encryptedKey.primitiveValue.get(keyBytes);
+        return keyBytes;
     }
 
     private static void readCertificate(DataInputStream dis, int version, String description) throws IOException {
