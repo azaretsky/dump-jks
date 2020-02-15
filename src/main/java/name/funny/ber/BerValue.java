@@ -43,7 +43,7 @@ public class BerValue {
     }
 
     private boolean matchTag(TagClass tagClass, int tag) {
-        return this.tagClass == tagClass  && this.tag == tag;
+        return this.tagClass == tagClass && this.tag == tag;
     }
 
     @Override
