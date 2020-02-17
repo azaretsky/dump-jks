@@ -114,7 +114,7 @@ class JKSDumper implements AutoCloseable {
         if (!algOid.matchPrimitive(BerValue.TagClass.Universal, 6)) {
             return null;
         }
-        if (!algOid.primitiveValue.equals(keyProtectorOid)) {
+        if (!algOid.valueBuffer.equals(keyProtectorOid)) {
             return null;
         }
         if (algId.children.size() == 2) {
@@ -122,7 +122,7 @@ class JKSDumper implements AutoCloseable {
             if (!algParams.matchPrimitive(BerValue.TagClass.Universal, 5)) {
                 return null;
             }
-            if (algParams.primitiveValue.limit() > 0) {
+            if (algParams.valueBuffer.limit() > 0) {
                 return null;
             }
         }
@@ -130,9 +130,9 @@ class JKSDumper implements AutoCloseable {
         if (!encryptedKey.matchPrimitive(BerValue.TagClass.Universal, 4)) {
             return null;
         }
-        byte[] keyBytes = new byte[encryptedKey.primitiveValue.limit()];
-        encryptedKey.primitiveValue.rewind();
-        encryptedKey.primitiveValue.get(keyBytes);
+        byte[] keyBytes = new byte[encryptedKey.valueBuffer.limit()];
+        encryptedKey.valueBuffer.rewind();
+        encryptedKey.valueBuffer.get(keyBytes);
         return keyBytes;
     }
 

@@ -18,7 +18,8 @@ public class BerValue {
 
     public final boolean primitive;
     public final List<BerValue> children;
-    public final ByteBuffer primitiveValue;
+    public final ByteBuffer elementBuffer;
+    public final ByteBuffer valueBuffer;
 
     public static BerValue fromBytes(byte[] bytes) {
         ByteBuffer buffer = ByteBuffer.wrap(bytes);
@@ -50,11 +51,11 @@ public class BerValue {
         builder.append(' ');
         builder.append(tag);
         if (primitive) {
-            if (primitiveValue.limit() > 0) {
+            if (valueBuffer.limit() > 0) {
                 builder.append(' ');
                 Formatter fmt = new Formatter(builder);
-                for (int i = 0; i < primitiveValue.limit(); i++) {
-                    fmt.format("%02x", primitiveValue.get(i));
+                for (int i = 0; i < valueBuffer.limit(); i++) {
+                    fmt.format("%02x", valueBuffer.get(i));
                 }
             }
         } else {
@@ -64,7 +65,19 @@ public class BerValue {
         return builder.toString();
     }
 
+    private static ByteBuffer subBuffer(ByteBuffer buffer, int start, int end) {
+        int originalPosition = buffer.position();
+        int originalLimit = buffer.limit();
+        buffer.limit(end);
+        buffer.position(start);
+        ByteBuffer sub = buffer.slice();
+        buffer.limit(originalLimit);
+        buffer.position(originalPosition);
+        return sub;
+    }
+
     private BerValue(ByteBuffer buffer) {
+        int elementStart = buffer.position();
         byte currentByte;
         currentByte = buffer.get();
         tagClass = TagClass.values()[(currentByte >> 6) & 0x03];
@@ -88,14 +101,16 @@ public class BerValue {
             if (primitive) {
                 throw new IllegalArgumentException("indefinite length of primitive value");
             }
-            primitiveValue = null;
+            int valueStart = buffer.position();
             children = new ArrayList<>();
             for (; ; ) {
                 buffer.mark();
-                // test for end-of-contents marker:
+                // test for an end-of-contents marker:
                 // current buffer order does not matter,
                 // since both bytes should be zero
                 if (buffer.getShort() == 0) {
+                    elementBuffer = subBuffer(buffer, elementStart, buffer.position());
+                    valueBuffer = subBuffer(buffer, valueStart, buffer.position() - 2);
                     break;
                 }
                 buffer.reset();
@@ -116,21 +131,18 @@ public class BerValue {
                     valueLength = (valueLength << 8) | (currentByte & 0xff);
                 }
             }
-            int outerLimit = buffer.limit();
-            int contentLimit = buffer.position() + valueLength;
-            buffer.limit(contentLimit);
-            ByteBuffer contents = buffer.slice();
-            buffer.limit(outerLimit);
-            buffer.position(contentLimit);
+            int elementEnd = buffer.position() + valueLength;
+            elementBuffer = subBuffer(buffer, elementStart, elementEnd);
+            valueBuffer = subBuffer(buffer, buffer.position(), elementEnd);
+            buffer.position(elementEnd);
             if (primitive) {
-                primitiveValue = contents;
                 children = null;
             } else {
-                primitiveValue = null;
                 children = new ArrayList<>();
-                while (contents.hasRemaining()) {
-                    children.add(new BerValue(contents));
+                while (valueBuffer.hasRemaining()) {
+                    children.add(new BerValue(valueBuffer));
                 }
+                valueBuffer.rewind();
             }
         }
     }
